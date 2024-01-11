@@ -134,10 +134,6 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::string filename = argv[1]; /* File name and path of the BIOS dump */
-    std::uintmax_t filesize = getFileSize(filename);
-    if (filesize != 16777216) {
-        return 1; /* Close if dump is not a full 16 mb dump */
-    }
     std::string hexString = readFileAsHexString(filename);
     int lenvPos1 = getLenvPos1(hexString); /* Gets position of the first LENV block in the HEX data */
     int lenvPos2 = getLenvPos2(hexString); /* Gets position of the second LENV block in the HEX data */
