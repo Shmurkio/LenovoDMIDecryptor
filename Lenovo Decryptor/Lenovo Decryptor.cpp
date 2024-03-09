@@ -1,7 +1,7 @@
 #include "Header.h"
 
 int main(int argc, char** argv) {
-    SetConsoleTitleA("Lenovo DMI Decryption Tool | v1.2");
+    SetConsoleTitleA("Lenovo DMI Decryption Tool | v1.3");
 
     if (argc < 2) {
         return 1;
