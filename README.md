@@ -7,11 +7,17 @@
 This is 1 of the 2 DMI blocks in a Lenovo BIOS dump which was decrypted. Analyzing and reverse engineering multiple BIOS dumps gives a general structure for all BIOSes.
 
 `4C454E56` **LENV signature:** Initializes DMI block
+
 `1 byte (8D)` **Unknown**
+
 `3 bytes (00)` **Padding**
+
 `1 byte (10)` **Number of data string:** 0x10 = 16 data strings in this DMI block
+
 `4 bytes (00)` **Padding**
+
 `1 byte (2A)` **Encryption/Decryption byte:** Byte used to XOR the data:
+
 ```c++
 std::string xorEncryptDecrypt(std::string lenvRegion, std::string key) {
     std::stringstream result;
@@ -27,7 +33,9 @@ std::string xorEncryptDecrypt(std::string lenvRegion, std::string key) {
     return result.str();
 }
 ```
+
 `2 bytes (46EE)` **Checksum:** Checksum to verify the integrity of the data. Sum up all bytes to create a 16-bit checksum and swap the first and second byte, in this case 0xEE46 -> 46EE:
+
 ```c++
 std::string getChecksum16(std::vector<uint8_t> bytesArray) {
     uint16_t checksum16 = 0;
@@ -43,20 +51,29 @@ std::string getChecksum16(std::vector<uint8_t> bytesArray) {
     return checksum16Stream.str();
 }
 ```
+
 ```20 bytes (321C5C468F4464236E88429349FDD887C40DE108)``` **Unknown**
+
 `15 bytes (00)` **Padding**
+
 `14 bytes (always 321C5C468F4464236E88429349FDD887C40DE108)` **Data fields separator:** Separates each "field" containing a data string
+
 `2 bytes` **Data identifier:** Identify the data string. Byte types are for example:
 - `0005` for UUID
 - `0001` for motherboard name
 - `0B00` for OA3 key ID
-- 
+
 `1 byte` **Length of the data string:** 0x0D = 13 = **n**
+
 `7 bytes (00)` **Padding**
+
 `n bytes` **Data string:** length **n**
+
 
 Exception: Identifier `0100310000000000000001000000000000000100000000000000` for Windows key, followed by 1 byte for the key length, a 3 byte padding and then the key.
 
+
 **Make sure to fix the byte for the data string length too if you change the length of the data string.**
+
 
 Video: [Lenovo DMI Decryptor](https://www.youtube.com/watch?v=mUXLHaK0CU8).
