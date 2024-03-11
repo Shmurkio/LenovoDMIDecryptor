@@ -5,6 +5,7 @@
 ![Lenovo DMI Decryptor v1.3.1 Syntaxt](https://i.imgur.com/lCqmmpL.png)
 
 `LENV.exe "BIOS.bin" -info ["Info.txt"]` Prints info in console (or to "Info.txt" if added)
+
 `LENV.exe "BIOS.bin" -decrypt ["BIOS_DECRYPTED.bin"]` Decrypts DMI region and writes results to input file (or to "BIOS_DECRYPTED.bin" if added)
 `LENV.exe "BIOS.bin" -encrypt ["BIOS_ENCRYPTED.bin"]` Encrypts DMI region and writes results to input file (or to "BIOS_ENCRYPTED.bin" if added)
 `LENV.exe "BIOS.bin" -extract "BIOS_DMI.bin"` Extracts DMI region to file "BIOS_DMI.bin"
