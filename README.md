@@ -41,6 +41,7 @@ std::string xorEncryptDecrypt(std::string lenvRegion, std::string key) {
     return result.str();
 }
 ```
+
 `2 bytes (46EE)` **Checksum:** Checksum to verify the integrity of the data. Sum up all bytes to create a 16-bit checksum and swap the first and second byte, in this case 0xEE46 -> 46EE:
 ```c++
 std::string getChecksum16(std::vector<uint8_t> bytesArray) {
@@ -57,16 +58,22 @@ std::string getChecksum16(std::vector<uint8_t> bytesArray) {
     return checksum16Stream.str();
 }
 ```
-```20 bytes (321C5C468F4464236E88429349FDD887C40DE108)``` **Unknown**
+
+`20 bytes (321C5C468F4464236E88429349FDD887C40DE108)` **Unknown**
+
 `15 bytes (00)` **Padding**
+
 `14 bytes (always 321C5C468F4464236E88429349FDD887C40DE108)` **Data fields separator:** Separates each "field" containing a data string
+
 `2 bytes` **Data identifier:** Identify the data string. Byte types are for example:
 - `0005` for UUID
 - `0001` for motherboard name
 - `0B00` for OA3 key ID
-- 
+
 `1 byte` **Length of the data string:** 0x0D = 13 = **n**
+
 `7 bytes (00)` **Padding**
+
 `n bytes` **Data string:** length **n**
 
 Exception: Identifier `0100310000000000000001000000000000000100000000000000` for Windows key, followed by 1 byte for the key length, a 3 byte padding and then the key.
