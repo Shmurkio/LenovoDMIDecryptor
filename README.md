@@ -21,11 +21,17 @@
 This is 1 of the 2 DMI blocks in a Lenovo BIOS dump which was decrypted. Analyzing and reverse engineering multiple BIOS dumps gives a general structure for all BIOSes.
 
 `4C454E56` **LENV signature:** Initializes DMI block
+
 `1 byte (8D)` **Unknown**
+
 `3 bytes (00)` **Padding**
+
 `1 byte (10)` **Number of data string:** 0x10 = 16 data strings in this DMI block
+
 `4 bytes (00)` **Padding**
+
 `1 byte (2A)` **Encryption/Decryption byte:** Byte used to XOR the data:
+
 ```c++
 std::string xorEncryptDecrypt(std::string lenvRegion, std::string key) {
     std::stringstream result;
