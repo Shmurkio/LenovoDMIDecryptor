@@ -69,7 +69,7 @@ std::string getChecksum16(std::vector<uint8_t> bytesArray) {
 
 `15 bytes (00)` **Padding**
 
-`14 bytes (always 321C5C468F4464236E88429349FDD887C40DE108)` **Data fields separator:** Separates each "field" containing a data string
+`14 bytes (always 55570EC26911564CA48A9824AB43)` **Data fields separator:** Separates each "field" containing a data string
 
 `2 bytes` **Data identifier:** Identify the data string. Byte types are for example:
 - `0005` for UUID
