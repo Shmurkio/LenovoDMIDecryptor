@@ -85,3 +85,5 @@ std::string getChecksum16(std::vector<uint8_t> bytesArray) {
 Exception: Identifier `0100310000000000000001000000000000000100000000000000` for Windows key, followed by 1 byte for the key length, a 3 byte padding and then the key.
 
 **Make sure to fix the byte for the data string length too if you change the length of the data string.**
+
+[The code is terrible, I'll fix it when I find the time.]
