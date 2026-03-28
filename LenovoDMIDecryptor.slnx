@@ -1,0 +1,11 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="LICENSE.txt" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="LenovoDMIDecryptor/LenovoDMIDecryptor.vcxproj" Id="61a40e90-c17c-4079-98b6-b45a4b09a192" />
+</Solution>
