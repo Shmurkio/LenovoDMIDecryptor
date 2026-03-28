@@ -185,6 +185,9 @@ namespace UI
 
             ImGui::SetNextWindowSize(ImVec2(608.0f, 500.0f), ImGuiCond_Appearing);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6.0f, 6.0f));
+            ImGui::PushStyleColor(ImGuiCol_TitleBg, IM_COL32(45, 75, 110, 255));
+            ImGui::PushStyleColor(ImGuiCol_TitleBgActive, IM_COL32(45, 75, 110, 255));
+            ImGui::PushStyleColor(ImGuiCol_TitleBgCollapsed, IM_COL32(45, 75, 110, 255));
 
             if (ImGui::BeginPopupModal("Hex Viewer", &State.HexViewer.Open, ImGuiWindowFlags_NoResize))
             {
@@ -237,6 +240,7 @@ namespace UI
             }
 
             ImGui::PopStyleVar();
+            ImGui::PopStyleColor(3);
         }
 
     }
