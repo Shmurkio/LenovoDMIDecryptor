@@ -47,13 +47,15 @@ static auto WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) -> int
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    ImGuiIO& Io = ImGui::GetIO();
-    Io.ConfigWindowsMoveFromTitleBarOnly = true;
+    ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
 
     ImGui::StyleColorsDark();
 
     ImGui_ImplWin32_Init(hWnd);
     ImGui_ImplDX11_Init(D3D::GetDevice(), D3D::GetDeviceContext());
+
+    ImGui::GetStyle().DisplaySafeAreaPadding = ImVec2(0.0f, 0.0f);
+    ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(48 / 255.0f, 48 / 255.0f, 48 / 255.0f, 1.0f);
 
     bool Done = false;
 

@@ -54,6 +54,9 @@
     <ClCompile Include="DMI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Old UI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Imgui\imconfig.h">
