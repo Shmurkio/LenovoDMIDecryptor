@@ -965,18 +965,24 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 
 	if (Block1Found)
 	{
-		auto Checksum = Util::GetChecksum16(Cast::To<uint8_t*>(&State.DmiBlock1->Unknown), State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER));
+		auto Checksum = Util::GetChecksum16(
+			Cast::To<uint8_t*>(&State.DmiBlock1->Unknown),
+			State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
+		);
 		if (Checksum != State.DmiBlock1->Header.Checksum) Block1ChecksumInvalid = true;
 	}
 
 	if (Block2Found)
 	{
-		auto Checksum = Util::GetChecksum16(Cast::To<uint8_t*>(&State.DmiBlock2->Unknown), State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER));
+		auto Checksum = Util::GetChecksum16(
+			Cast::To<uint8_t*>(&State.DmiBlock2->Unknown),
+			State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
+		);
 		if (Checksum != State.DmiBlock2->Header.Checksum) Block2ChecksumInvalid = true;
 	}
 
-	const auto Block1Clickable = Block1Found && !Block1Invalid && !Block1ChecksumInvalid;
-	const auto Block2Clickable = Block2Found && !Block2Invalid && !Block2ChecksumInvalid;
+	const auto Block1Clickable = Block1Found && !Block1Invalid;
+	const auto Block2Clickable = Block2Found && !Block2Invalid;
 
 	// Block 1.
 	if (MeasureOnly)
@@ -998,7 +1004,10 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 			}
 			else
 			{
-				State.DmiBlock1->Header.Checksum = Util::GetChecksum16(Cast::To<uint8_t*>(&State.DmiBlock1->Unknown), State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER));
+				State.DmiBlock1->Header.Checksum = Util::GetChecksum16(
+					Cast::To<uint8_t*>(&State.DmiBlock1->Unknown),
+					State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
+				);
 				State.FileInfo.Dirty = true;
 			}
 		}
@@ -1045,7 +1054,10 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 			}
 			else
 			{
-				State.DmiBlock2->Header.Checksum = Util::GetChecksum16(Cast::To<uint8_t*>(&State.DmiBlock2->Unknown), State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER));
+				State.DmiBlock2->Header.Checksum = Util::GetChecksum16(
+					Cast::To<uint8_t*>(&State.DmiBlock2->Unknown),
+					State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
+				);
 				State.FileInfo.Dirty = true;
 			}
 		}

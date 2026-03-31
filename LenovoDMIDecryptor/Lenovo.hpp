@@ -17,7 +17,7 @@ namespace Lenovo
 
 	typedef struct _DMI_DATA_ENTRY
 	{
-		uint8_t			Signature[14];	// +0x00: "55 57 0E C2 69 11 56 4C A4 8A 98 24 AB 43 00 03" (decrypted)
+		uint8_t			Signature[14];	// +0x00: "55 57 0E C2 69 11 56 4C A4 8A 98 24 AB 43" (decrypted)
 		uint32_t		Type;			// +0x0E: Type of the entry (e.g. 0x0100 for motherboard name)
 		uint64_t		DataSize;		// +0x12: Size of the data
 		uint8_t			Data[1];		// +0x1A: Actual data
