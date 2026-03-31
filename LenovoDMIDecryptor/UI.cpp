@@ -171,7 +171,7 @@ static const ImU32 gStatusPanelCheckboxHoverColor = gDmiPanelHeaderHoverColor;
 static const ImU32 gStatusPanelCheckboxActiveColor = gDmiPanelHeaderHoverColor;
 static const ImU32 gStatusPanelCheckboxCheckmarkColor = IM_COL32(255, 255, 255, 255);
 
-static std::string gVersionString = "1.4.1";
+static std::string gVersionString = "1.4.2";
 
 static bool gOpenAboutPopup = false;
 
