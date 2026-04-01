@@ -5,6 +5,19 @@
 #include "Cast.hpp"
 #include "Util.hpp"
 
+static auto IsEncrypted(Lenovo::PDMI_DATA DmiBlock) -> bool
+{
+	if (!DmiBlock)
+	{
+		return false;
+	}
+
+	auto Ptr = reinterpret_cast<uint8_t*>(DmiBlock);
+	uint8_t LastByte = Ptr[Lenovo::DEFAULT_DMI_BLOCK_SIZE - 1];
+	
+	return (LastByte == DmiBlock->Header.Key);
+}
+
 struct UI_LAYOUT
 {
 	float TitleBarHeight;
@@ -171,7 +184,7 @@ static const ImU32 gStatusPanelCheckboxHoverColor = gDmiPanelHeaderHoverColor;
 static const ImU32 gStatusPanelCheckboxActiveColor = gDmiPanelHeaderHoverColor;
 static const ImU32 gStatusPanelCheckboxCheckmarkColor = IM_COL32(255, 255, 255, 255);
 
-static std::string gVersionString = "1.4.2";
+static std::string gVersionString = "1.4.3";
 
 static bool gOpenAboutPopup = false;
 
@@ -774,6 +787,150 @@ static auto DrawMenuBar(HWND hWnd, APP_STATE& State) -> void
 	ImGui::PopStyleColor(3);
 }
 
+static auto DrawDmiHeader(Lenovo::CDMI_HEADER& Header) -> void
+{
+	if (!ImGui::TreeNode("Header"))
+	{
+		return;
+	}
+
+	char Signature[5] = { 0 };
+	memcpy(Signature, &Header.Signature, 4);
+
+	ImGui::Text("Signature:");	ImGui::SameLine(300.0f);	ImGui::Text("%s", Signature);
+	ImGui::Text("Generation:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%08X", Header.Generation);
+	ImGui::Text("Entries:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%08X", Header.Entries);
+	ImGui::Text("AccessFlag:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%02X", Header.AccessFlag);
+	ImGui::Text("Key:");		ImGui::SameLine(300.0f);	ImGui::Text("0x%02X", Header.Key);
+	ImGui::Text("Checksum:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%04X", Header.Checksum);
+
+	ImGui::TreePop();
+}
+
+static auto DrawHexRow(const uint8_t* Data, size_t Size) -> void
+{
+	if (!Data || Size == 0)
+	{
+		return;
+	}
+
+	constexpr size_t BytesPerRow = 16;
+
+	for (size_t Row = 0; Row < Size; Row += BytesPerRow)
+	{
+		char HexLine[128] = { 0 };
+		char AsciiLine[17] = { 0 };
+
+		size_t HexPos = 0;
+		size_t Col = 0;
+
+		for (; Col < BytesPerRow && (Row + Col) < Size; ++Col)
+		{
+			const auto Byte = Data[Row + Col];
+
+			if (Col == 8)
+			{
+				HexPos += sprintf_s(HexLine + HexPos, sizeof(HexLine) - HexPos, " ");
+			}
+
+			HexPos += sprintf_s(
+				HexLine + HexPos,
+				sizeof(HexLine) - HexPos,
+				"%02X ",
+				Byte
+			);
+
+			AsciiLine[Col] = (Byte >= 32 && Byte <= 126)
+				? static_cast<char>(Byte)
+				: '.';
+		}
+
+		for (; Col < BytesPerRow; ++Col)
+		{
+			if (Col == 8)
+			{
+				HexPos += sprintf_s(HexLine + HexPos, sizeof(HexLine) - HexPos, " ");
+			}
+
+			HexPos += sprintf_s(
+				HexLine + HexPos,
+				sizeof(HexLine) - HexPos,
+				"   "
+			);
+		}
+
+		ImGui::Text("%04zX | %s| %s", Row, HexLine, AsciiLine);
+	}
+}
+
+static auto DrawDmiEntry(Lenovo::PDMI_DATA_ENTRY Entry, uint32_t Index) -> Lenovo::PDMI_DATA_ENTRY
+{
+	if (!Entry)
+	{
+		return nullptr;
+	}
+	
+	char EntryLabel[64] = { 0 };
+	snprintf(EntryLabel, sizeof(EntryLabel), "Entry[0x%08X]", Index);
+
+	if (ImGui::TreeNode(EntryLabel))
+	{
+		if (ImGui::TreeNode("Key"))
+		{
+			if (ImGui::TreeNode("Signature"))
+			{
+				DrawHexRow(Entry->Key.Signature, 0x0E);
+				ImGui::TreePop();
+			}
+
+			ImGui::Text("FieldId:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%04X", Entry->Key.FieldId);
+			ImGui::TreePop();
+		}
+
+		ImGui::Text("DataSize:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%08X", Entry->DataSize);
+		ImGui::Text("Flags:");		ImGui::SameLine(300.0f);	ImGui::Text("0x%02X", Entry->Flags);
+		ImGui::Text("Unknown1:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%02X", Entry->Unknown1);
+		ImGui::Text("Unknown2:");	ImGui::SameLine(300.0f);	ImGui::Text("0x%04X", Entry->Unknown2);
+
+		if (ImGui::TreeNode("Data"))
+		{
+			DrawHexRow(Entry->Data, Entry->DataSize);
+			ImGui::TreePop();
+		}
+
+		ImGui::TreePop();
+	}
+
+	auto NextEntry = Cast::To<Lenovo::PDMI_DATA_ENTRY>(Cast::To<uint8_t*>(Entry) + offsetof(Lenovo::DMI_DATA_ENTRY, Data) + Entry->DataSize);
+	return NextEntry;
+}
+
+static auto DrawDmiBody(Lenovo::PDMI_DATA Block, uint32_t DmiBlockSize) -> void
+{
+	if (!ImGui::TreeNode("Body"))
+	{
+		return;
+	}
+
+	if (!IsEncrypted(Block)) // Only if decrypted
+	{
+		if (ImGui::TreeNode("Entries"))
+		{
+			auto Entry = reinterpret_cast<Lenovo::PDMI_DATA_ENTRY>(Block->Entry);
+
+			for (uint32_t i = 0; i < Block->Header.Entries; ++i)
+			{
+				auto NextEntry = DrawDmiEntry(Entry, i);
+				Entry = NextEntry;
+			}
+
+			ImGui::TreePop();
+		}
+	}
+
+	ImGui::TreePop();
+}
+
 static auto DrawDmiBlock(const char* Name, Lenovo::PDMI_DATA Block, uint32_t Offset, uint32_t DmiBlockSize) -> void
 {
 	if (!Block)
@@ -781,45 +938,23 @@ static auto DrawDmiBlock(const char* Name, Lenovo::PDMI_DATA Block, uint32_t Off
 		return;
 	}
 
-	if (ImGui::TreeNode(Name))
+	if (!ImGui::TreeNode(Name))
 	{
-		ImGui::Text("Offset:");	ImGui::SameLine(200.0f);	ImGui::Text("0x%08X (%u)", Offset, Offset);
-		ImGui::Text("Size:");	ImGui::SameLine(200.0f);	ImGui::Text("0x%08X (%u)", DmiBlockSize, DmiBlockSize);
-
-		if (ImGui::TreeNode("Header"))
-		{
-			char Signature[5] = { 0 };
-			memcpy(Signature, &Block->Header.Signature, 4);
-
-			ImGui::Text("Signature:");	ImGui::SameLine(200.0f);	ImGui::Text("%s", Signature);
-			ImGui::Text("Unknown1:");	ImGui::SameLine(200.0f);	ImGui::Text("0x%08X (%u)", Block->Header.Unknown1, Block->Header.Unknown1);
-			ImGui::Text("Entries:");	ImGui::SameLine(200.0f);	ImGui::Text("0x%08X (%u)", Block->Header.Entries, Block->Header.Entries);
-			ImGui::Text("Unknown2:");	ImGui::SameLine(200.0f);	ImGui::Text("0x%02X (%u)", Block->Header.Unknown2, Block->Header.Unknown2);
-			ImGui::Text("Key:");		ImGui::SameLine(200.0f);	ImGui::Text("0x%02X (%u)", Block->Header.Key, Block->Header.Key);
-			ImGui::Text("Checksum:");	ImGui::SameLine(200.0f);	ImGui::Text("0x%04X (%u)", Block->Header.Checksum, Block->Header.Checksum);
-
-			ImGui::TreePop();
-		}
-
-		if (ImGui::TreeNode("Body"))
-		{
-			if (ImGui::TreeNode("Unknown[0x20]"))
-			{
-				for (int i = 0; i < 32; ++i)
-				{
-					ImGui::Text("[0x%02X]:", i);
-					ImGui::SameLine(200.0f);
-					ImGui::Text("0x%02X (%u)", Block->Unknown[i], Block->Unknown[i]);
-				}
-
-				ImGui::TreePop();
-			}
-
-			ImGui::TreePop();
-		}
-
-		ImGui::TreePop();
+		return;
 	}
+
+	ImGui::Text("Offset:");
+	ImGui::SameLine(300.0f);
+	ImGui::Text("0x%08X", Offset);
+
+	ImGui::Text("Size:");
+	ImGui::SameLine(300.0f);
+	ImGui::Text("0x%08X", DmiBlockSize);
+
+	DrawDmiHeader(Block->Header);
+	DrawDmiBody(Block, DmiBlockSize);
+
+	ImGui::TreePop();
 }
 
 auto DrawDmiPanel(APP_STATE& State) -> void
@@ -938,27 +1073,12 @@ auto DrawDmiPanel(APP_STATE& State) -> void
 
 static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly) -> void
 {
-	auto Block1Encrypted = false;
-	auto Block2Encrypted = false;
+	auto Block1Encrypted = IsEncrypted(State.DmiBlock1);
+	auto Block2Encrypted = IsEncrypted(State.DmiBlock2);
 
 	const auto FileLoaded = State.FileInfo.Loaded;
 	const auto Block1Found = FileLoaded && State.DmiBlock1Found;
 	const auto Block2Found = FileLoaded && State.DmiBlock2Found;
-
-	auto Block1Invalid = false;
-	auto Block2Invalid = false;
-
-	if (Block1Found)
-	{
-		Block1Invalid = State.DmiBlock1->Unknown[0x1F] != State.DmiBlock1->Header.Key && State.DmiBlock1->Unknown[0x1F] != 0;
-		if (!Block1Invalid) Block1Encrypted = State.DmiBlock1->Unknown[0x1F] == State.DmiBlock1->Header.Key;
-	}
-
-	if (Block2Found)
-	{
-		Block2Invalid = State.DmiBlock2->Unknown[0x1F] != State.DmiBlock2->Header.Key && State.DmiBlock2->Unknown[0x1F] != 0;
-		if (!Block2Invalid) Block2Encrypted = State.DmiBlock2->Unknown[0x1F] == State.DmiBlock2->Header.Key;
-	}
 
 	auto Block1ChecksumInvalid = false;
 	auto Block2ChecksumInvalid = false;
@@ -966,7 +1086,7 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 	if (Block1Found)
 	{
 		auto Checksum = Util::GetChecksum16(
-			Cast::To<uint8_t*>(&State.DmiBlock1->Unknown),
+			Cast::To<uint8_t*>(&State.DmiBlock1->Entry),
 			State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
 		);
 		if (Checksum != State.DmiBlock1->Header.Checksum) Block1ChecksumInvalid = true;
@@ -975,14 +1095,14 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 	if (Block2Found)
 	{
 		auto Checksum = Util::GetChecksum16(
-			Cast::To<uint8_t*>(&State.DmiBlock2->Unknown),
+			Cast::To<uint8_t*>(&State.DmiBlock2->Entry),
 			State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
 		);
 		if (Checksum != State.DmiBlock2->Header.Checksum) Block2ChecksumInvalid = true;
 	}
 
-	const auto Block1Clickable = Block1Found && !Block1Invalid;
-	const auto Block2Clickable = Block2Found && !Block2Invalid;
+	const auto Block1Clickable = Block1Found;
+	const auto Block2Clickable = Block2Found;
 
 	// Block 1.
 	if (MeasureOnly)
@@ -1005,7 +1125,7 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 			else
 			{
 				State.DmiBlock1->Header.Checksum = Util::GetChecksum16(
-					Cast::To<uint8_t*>(&State.DmiBlock1->Unknown),
+					Cast::To<uint8_t*>(&State.DmiBlock1->Entry),
 					State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
 				);
 				State.FileInfo.Dirty = true;
@@ -1022,11 +1142,6 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 	{
 		ImGui::SameLine();
 		ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "Not found");
-	}
-	else if (Block1Invalid)
-	{
-		ImGui::SameLine();
-		ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "Invalid");
 	}
 	else if (Block1ChecksumInvalid)
 	{
@@ -1055,7 +1170,7 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 			else
 			{
 				State.DmiBlock2->Header.Checksum = Util::GetChecksum16(
-					Cast::To<uint8_t*>(&State.DmiBlock2->Unknown),
+					Cast::To<uint8_t*>(&State.DmiBlock2->Entry),
 					State.DmiBlockSize - sizeof(Lenovo::DMI_HEADER)
 				);
 				State.FileInfo.Dirty = true;
@@ -1072,11 +1187,6 @@ static auto DrawStatusPanelContent(HWND hWnd, APP_STATE& State, bool MeasureOnly
 	{
 		ImGui::SameLine();
 		ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "Not found");
-	}
-	else if (Block2Invalid)
-	{
-		ImGui::SameLine();
-		ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "Invalid");
 	}
 	else if (Block2ChecksumInvalid)
 	{

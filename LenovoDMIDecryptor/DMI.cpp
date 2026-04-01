@@ -16,7 +16,8 @@ auto Dmi::GetBlockEncrypted(Lenovo::PDMI_DATA Block, bool& Encrypted, bool& Inva
         return;
     }
 
-    const auto Value = Block->Unknown[31];
+    auto Ptr = reinterpret_cast<uint8_t*>(Block);
+    const auto Value = Ptr[Lenovo::DEFAULT_DMI_BLOCK_SIZE - 1];
 
     if (Value == 0)
     {

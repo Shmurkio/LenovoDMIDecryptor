@@ -4,6 +4,8 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Solution Items/">
+    <File Path="Images/LDBG.png" />
+    <File Path="Images/Screenshot.png" />
     <File Path="LICENSE.txt" />
     <File Path="README.md" />
   </Folder>
