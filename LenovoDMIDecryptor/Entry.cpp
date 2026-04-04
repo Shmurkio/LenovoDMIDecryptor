@@ -2,7 +2,6 @@
 #include "File.hpp"
 #include "Cast.hpp"
 #include "Util.hpp"
-#include "Lenovo.hpp"
 #include "Window.hpp"
 #include "AppState.hpp"
 #include "UI.hpp"

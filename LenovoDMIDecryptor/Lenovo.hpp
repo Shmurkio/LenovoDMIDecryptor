@@ -1,75 +1,120 @@
 #pragma once
 
 #include "LenovoDMIDecryptor.hpp"
+#include "Cast.hpp"
 
 namespace Lenovo
 {
-#pragma pack(push, 1)							// Ensure no padding between fields
-	typedef struct _DMI_HEADER
+	constexpr auto Signature32(uint8_t A, uint8_t B, uint8_t C, uint8_t D) -> uint32_t
 	{
-		uint32_t		Signature;				// +0x00: "LENV"
-		uint32_t		Generation;				// +0x04: "Generation" - LenovoVariableDxe prefers the newer block (highest generation). If a block's generation is 0, the block is considered invalid. Error if both blocks have 0 generation.
-		uint32_t		Entries;				// +0x08: Number of DMI entries
-		uint8_t			AccessFlag;				// +0x0C: 1 == read-only
-		uint8_t			Key;					// +0x0D: XOR key
-		uint16_t		Checksum;				// +0x0E: Additive 16-bit checksum of the body (excluding the header)
-	} DMI_HEADER, *PDMI_HEADER;
+		return (Cast::To<uint32_t>(D) << 24) | (Cast::To<uint32_t>(C) << 16) | (Cast::To<uint32_t>(B) << 8) | Cast::To<uint32_t>(A);
+	};
 
-	typedef struct _DMI_ENTRY_KEY
+#pragma pack(push, 1)
+	typedef struct _LENV_HEADER
 	{
-		uint8_t			Signature[0x0E];		// +0x00: Lenovo DMI entry signature / namespace identifier ("55 57 0E C2 69 11 56 4C A4 8A 98 24 AB 43" consumed by L05SmbiosOverride to retrieve SMBIOS data, "46 8F 44 64 23 6E 88 42 93 49 FD D8 87 C4" consumed by BdsDxe and OneKeyRecovery)
-		uint16_t		FieldId;				// +0x0E: Per-entry identifier; together with Signature forms the lookup key for LENOVO_VARIABLE_PROTOCOL
-	} DMI_ENTRY_KEY, *PDMI_ENTRY_KEY;
+		uint32_t				Signature;		// +0x00: "LENV"
+		uint32_t				Generation;		// +0x04: Higher value = newer block, 0 = invalid
+		uint32_t				Entries;		// +0x08: Total number of entries
+		uint8_t					AccessFlag;		// +0x0C: Bit 0 appears to mark the block as write-protected
+		uint8_t					XorKey;			// +0x0D: Each byte of the block body (i.e. all bytes after the header) is XORed with this key when the block is encrypted
+		uint16_t				Checksum;		// +0x0E: Additive 16-bit checksum of the encrypted block body
+	} LENV_HEADER, *PLENV_HEADER;
 
-	typedef struct _DMI_DATA_ENTRY
+	typedef struct _NAMESPACE_ID
 	{
-		DMI_ENTRY_KEY	Key;					// +0x00: Lookup key used by LENOVO_VARIABLE_PROTOCOL
-		uint32_t		DataSize;				// +0x10: Size of the data
-		uint8_t			Flags;					// +0x14: bit0 appears to mark the entry as write-protected
-		uint8_t			Unknown1;				// +0x15: Unknown
-		uint16_t		Unknown2;				// +0x16: Unknown
-		uint8_t			Data[1];				// +0x18: Actual data
-	} DMI_DATA_ENTRY, *PDMI_DATA_ENTRY;
+		uint8_t					Bytes[0x0E];
+	} NAMESPACE_ID, *PNAMESPACE_ID;
 
-	typedef struct _DMI_DATA
-	{
-		DMI_HEADER		Header;					// +0x00: DMI header
-		DMI_DATA_ENTRY	Entry[1];				// +0x10: Array of DMI entries
-	} DMI_DATA, *PDMI_DATA;
+	using ENTRY_TYPE = uint16_t;
 
-	typedef struct _DMI_DATA_ENTRY_WINDOWS_KEY	// Unknown1 or Unknown2 could represent a "present" flag or a number of keys, not too sure about this
+	typedef struct _ENTRY_KEY					
 	{
-		uint64_t		Unknown1;				// 0x00: Unknown
-		uint64_t		Unknown2;				// 0x08: Unknown
-		uint32_t		KeyLength;				// 0x10: Length of the Windows key
-		char			Key[1];					// 0x14: Windows key
-	} DMI_DATA_ENTRY_WINDOWS_KEY, *PDMI_DATA_ENTRY_WINDOWS_KEY;
+		NAMESPACE_ID			NamespaceId;	// +0x00: Used to group entries in different categories
+		ENTRY_TYPE				Type;			// +0x0E: Specifies the type of entry within the namespace
+	} ENTRY_KEY, *PENTRY_KEY;
+
+	typedef struct _LENV_ENTRY
+	{
+		ENTRY_KEY				Key;			// +0x00: Composite key used by the firmware to identify entries within a certain namespace
+		uint32_t				DataSize;		// +0x10: Size of the Data field in bytes
+		uint8_t					Flags;			// +0x14: Bit 0 appears to mark the entry as write-protected
+		uint8_t					Unknown1;		// +0x15: Unknown
+		uint16_t				Unknown2;		// +0x16: Unknown
+		uint8_t					Data[1];		// +0x18: Actual data
+	} LENV_ENTRY, *PLENV_ENTRY;
+
+	typedef struct _LENV_BLOCK
+	{
+		LENV_HEADER				Header;			// +0x00: LENV block header
+		LENV_ENTRY				Entries[1];		// +0x10: Array of LENV entries
+	} LENV_BLOCK, *PLENV_BLOCK;
+
+	typedef struct _LDBG_HEADER
+	{
+		uint32_t				Signature;		// +0x00: "LDBG"
+		uint32_t				WriteOffset;	// +0x04: Used by the firmware to determine where to append new entries within the block
+		uint8_t					Unknown1[0x18];	// +0x08: Unknown. Doesn't appear to serve any purpose in the reverse-engineered firmware
+	} LDBG_HEADER, *PLDBG_HEADER;
+
+	typedef struct _TIMESTAMP
+	{
+		uint16_t				Year;			// +0x00: Year is stored as (2000 + RTC_year_byte), so only the low byte contains the RTC BCD year value
+		uint8_t					Month;			// +0x02: BCD encoded month value read from RTC
+		uint8_t					Day;			// +0x03: BCD encoded day value read from RTC
+		uint8_t					Hour;			// +0x04: BCD encoded hour value read from RTC
+		uint8_t					Minute;			// +0x05: BCD encoded minute value read from RTC
+		uint8_t					Second;			// +0x06: BCD encoded second value read from RTC
+	} TIMESTAMP, *PTIMESTAMP;
+
+	enum class LDBG_OPERATION : uint8_t
+	{
+		SetData		= 0x02,
+		Protect		= 0x06,
+		Unprotect	= 0x07
+	};
+
+	typedef struct _LDBG_ENTRY
+	{
+		TIMESTAMP				Timestamp;		// +0x00: Timestamp of the entry
+		LDBG_OPERATION			Operation;		// +0x07: Operation performed on the entry. The firmware appears to only create entries with operations SetData, Protect, and Unprotect
+		ENTRY_KEY				Key;			// +0x08: Composite key of the entry
+		uint32_t				Size;			// +0x10: Size of the entry data
+		uint8_t					Unknown1[0x4];	// +0x14: Unknown. Doesn't appear to serve any purpose in the reverse-engineered firmware
+	} LDBG_ENTRY, *PLDBG_ENTRY;
+	
+	typedef struct _LDBG_BLOCK
+	{
+		LDBG_HEADER				Header;			// +0x00: LDBG block header
+		LDBG_ENTRY				Entries[1];		// +0x20: Array of LDBG entries
+	} LDBG_BLOCK, *PLDBG_BLOCK;
 #pragma pack(pop)
 
-	using CDMI_HEADER					= const DMI_HEADER;
-	using PCDMI_HEADER					= const DMI_HEADER*;
-	using CDMI_DATA_ENTRY				= const DMI_DATA_ENTRY;
-	using PCDMI_DATA_ENTRY				= const DMI_DATA_ENTRY*;
-	using CDMI_DATA						= const DMI_DATA;
-	using PCDMI_DATA					= const DMI_DATA*;
-	using CDMI_DATA_ENTRY_WINDOWS_KEY	= const DMI_DATA_ENTRY_WINDOWS_KEY;
-	using PCDMI_DATA_ENTRY_WINDOWS_KEY	= const DMI_DATA_ENTRY_WINDOWS_KEY*;
+	using CLENV_HEADER		= const LENV_HEADER;
+	using PCLENV_HEADER		= const LENV_HEADER*;
+	using CNAMESPACE_ID		= const NAMESPACE_ID;
+	using PCNAMESPACE_ID	= const NAMESPACE_ID*;
+	using PENTRY_TYPE		= ENTRY_TYPE*;
+	using CENTRY_TYPE		= const ENTRY_TYPE;
+	using PCENTRY_TYPE		= const ENTRY_TYPE*;
+	using CENTRY_KEY		= const ENTRY_KEY;
+	using PCENTRY_KEY		= const ENTRY_KEY*;
+	using CLENV_ENTRY		= const LENV_ENTRY;
+	using PCLENV_ENTRY		= const LENV_ENTRY*;
+	using CLENV_BLOCK		= const LENV_BLOCK;
+	using PCLENV_BLOCK		= const LENV_BLOCK*;
+	using CLDBG_HEADER		= const LDBG_HEADER;
+	using PCLDBG_HEADER		= const LDBG_HEADER*;
+	using CTIMESTAMP		= const TIMESTAMP;
+	using PCTIMESTAMP		= const TIMESTAMP*;
+	using CLDBG_ENTRY		= const LDBG_ENTRY;
+	using PCLDBG_ENTRY		= const LDBG_ENTRY*;
 
-	constexpr const uint32_t DEFAULT_DMI_BLOCK_SIZE = 0x1000; // LenovoVariableDxe allocates 0x1000 bytes / 1 page for the DMI block, so it's unlikely that the actual size exceeds this
+	constexpr const uint32_t LENV_SIGNATURE = Signature32('L', 'E', 'N', 'V');
+	constexpr const uint32_t LDBG_SIGNATURE = Signature32('L', 'D', 'B', 'G');
 
-	constexpr const char* DMI_HEADER_PATTERN = "4C 45 4E 56 ? ? ? ? ? ? 00 00"; // DMI_HEADER::Entries shouldn't exceed uint16_t, therefore the upper two bytes should be zero
+	constexpr const uint32_t DEFAULT_LENV_SIZE = 0x1000;
+	constexpr const uint32_t DEFAULT_LDBG_SIZE = 0x2000;
 
-	// FieldIds used within Lenovo's proprietary DMI storage.
-	// A DMI entry is identified by a composite key: Signature[14] + FieldId.
-	// The Signature acts as a namespace identifier, FieldId selects a specific field.
-	// LENOVO_VARIABLE_PROTOCOL uses this composite key to retrieve entry data.
-	// Some consumers appear to rely on fixed positions, therefore changing the order or length of entries
-	// may break the mapping.
-	constexpr const uint16_t WINDOWS_KEY				= 0x0001;
-	constexpr const uint16_t MOTHERBOARD_NAME			= 0x0100;
-	constexpr const uint16_t OA3_KEY_ID					= 0x000B;
-	constexpr const uint16_t BASEBOARD_PLATFORM_ID		= 0x0F00;
-	constexpr const uint16_t OS_PRELOAD_SUFFIX			= 0x1000;
-	constexpr const uint16_t BASEBOARD_SERIAL_NUMBER	= 0x0400;
-	constexpr const uint16_t MACHINE_TYPE_MODEL			= 0x0200;
+	constexpr const char* LDBG_PATTERN = "4C 44 42 47 ? ? ? ? 00 00 00 00 00 00 00 00";
 }

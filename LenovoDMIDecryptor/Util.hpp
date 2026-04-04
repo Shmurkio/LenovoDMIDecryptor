@@ -72,7 +72,6 @@ namespace Util
                     continue;
                 }
 
-                // Need two hex characters for a byte like "48"
                 if (!PatternCursor[0] || !PatternCursor[1])
                 {
                     return STATUS_INVALID_PARAMETER;

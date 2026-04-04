@@ -6,5 +6,8 @@
 namespace Dmi
 {
     auto ReloadBlocks(HWND hWnd, APP_STATE& State) -> bool;
-    auto GetBlockEncrypted(Lenovo::PDMI_DATA Block, bool& Encrypted, bool& Invalid) -> void;
+	auto ToggleLdbgBlockEncryption(HWND hWnd, APP_STATE& State) -> bool;
+	auto ToggleLenvBlock1Encryption(HWND hWnd, APP_STATE& State) -> bool;
+	auto ToggleLenvBlock2Encryption(HWND hWnd, APP_STATE& State) -> bool;
+	auto SetPrioritizedLenvBlock(HWND hWnd, APP_STATE& State, int BlockNumber) -> bool;
 }
