@@ -72,10 +72,8 @@ struct STRUCTURE_PANEL_LAYOUT
 	ImU32	HeaderHoverColor;
 	ImU32	HeaderActiveColor;
 	ImU32	TextPriorityColor;
-	ImU32	LdbgOpSetDataColor;
-	ImU32	LdbgOpProtectColor;
-	ImU32	LdbgOpUnprotectColor;
-	ImU32	LdbgOpUnknownColor;
+	ImU32	SmbiosNamespaceColor;
+	ImU32	OtherNamespaceColor;
 };
 
 struct STATE_PANEL_LAYOUT
@@ -105,7 +103,7 @@ struct UI_LAYOUT
 };
 
 static UI_LAYOUT						gLayout = { 0 };
-static std::string						gVersionString = "1.4.4";
+static std::string						gVersionString = "1.4.5";
 static bool								gOpenAboutPopup = false;
 static double							gDiscordCopiedTime = 0.0;
 static std::unordered_set<std::string>	gCopiedDiscordUsers;
@@ -232,10 +230,8 @@ static auto BuildStructurePanel(
 	ImU32	HeaderHoverColor,
 	ImU32	HeaderActiveColor,
 	ImU32	TextPriorityColor,
-	ImU32	LdbgOpSetDataColor,
-	ImU32	LdbgOpProtectColor,
-	ImU32	LdbgOpUnprotectColor,
-	ImU32	LdbgOpUnknownColor
+	ImU32	SmbiosNamespaceColor,
+	ImU32	OtherNamespaceColor
 ) -> void
 {
 	const auto TextLineHeight						= ImGui::GetTextLineHeight();
@@ -259,10 +255,8 @@ static auto BuildStructurePanel(
 	gLayout.StructurePanel.HeaderHoverColor			= HeaderHoverColor;
 	gLayout.StructurePanel.HeaderActiveColor		= HeaderActiveColor;
 	gLayout.StructurePanel.TextPriorityColor		= TextPriorityColor;
-	gLayout.StructurePanel.LdbgOpSetDataColor		= LdbgOpSetDataColor;
-	gLayout.StructurePanel.LdbgOpProtectColor		= LdbgOpProtectColor;
-	gLayout.StructurePanel.LdbgOpUnprotectColor		= LdbgOpUnprotectColor;
-	gLayout.StructurePanel.LdbgOpUnknownColor		= LdbgOpUnknownColor;
+	gLayout.StructurePanel.SmbiosNamespaceColor		= SmbiosNamespaceColor;
+	gLayout.StructurePanel.OtherNamespaceColor	= OtherNamespaceColor;
 }
 
 static auto BuildStatePanel(
@@ -974,7 +968,7 @@ static auto DrawAboutWindow() -> void
 		ImGui::Separator();
 
 		DrawLinkText("GitHub repository:", gLayout.AboutWindow.LabelOffset, "LenovoDMIDecryptor", "https://github.com/Shmurkio/LenovoDMIDecryptor", gLayout.AboutWindow.TextLinkOpenedColor, gLayout.AboutWindow.TextLinkDefaultColor);
-		DrawLinkText("Win-Raid thread:", gLayout.AboutWindow.LabelOffset, "Lenovo DMI Decryptor", "https://winraid.level1techs.com/t/lenovo-dmi-decryptor", gLayout.AboutWindow.TextLinkOpenedColor, gLayout.AboutWindow.TextLinkDefaultColor);
+		DrawLinkText("Win-Raid thread:", gLayout.AboutWindow.LabelOffset, "Lenovo DMI Decryption Tool", "https://winraid.level1techs.com/t/lenovo-dmi-decryption-tool", gLayout.AboutWindow.TextLinkOpenedColor, gLayout.AboutWindow.TextLinkDefaultColor);
 
 		ImGui::Dummy(ImVec2(0.0f, gLayout.AboutWindow.Spacing));
 
@@ -1095,32 +1089,44 @@ static auto LdbgOperationToString(Lenovo::LDBG_OPERATION Op) -> const char*
 	}
 }
 
-static auto LdbgOperationToColor(Lenovo::LDBG_OPERATION Op) -> ImU32
+static auto NamespaceIdColor(Lenovo::PCNAMESPACE_ID NamespaceId) -> ImU32
 {
-	switch (Op)
+	if (Lenovo::IsSmbiosNamespace(NamespaceId))
 	{
-	case Lenovo::LDBG_OPERATION::SetData:   return gLayout.StructurePanel.LdbgOpSetDataColor;
-	case Lenovo::LDBG_OPERATION::Protect:   return gLayout.StructurePanel.LdbgOpProtectColor;
-	case Lenovo::LDBG_OPERATION::Unprotect:	return gLayout.StructurePanel.LdbgOpUnprotectColor;
-	default:                                return gLayout.StructurePanel.LdbgOpUnknownColor;
+		return gLayout.StructurePanel.SmbiosNamespaceColor;
 	}
+	else
+	{
+		return gLayout.StructurePanel.OtherNamespaceColor;
+	}
+}
+
+static auto EntryKeyToString(Lenovo::PCENTRY_KEY Key) -> std::string
+{
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_WINDOWS_KEY)) return "Windows Key";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_OA3_KEY_ID)) return "OA3 Key ID";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_MOTHERBOARD_NAME)) return "Motherboard Name";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_MACHINE_TYPE_MODEL)) return "Machine Type/Model";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_BASEBOARD_SERIAL_NUMBER)) return "Baseboard Serial Number";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_SYSTEM_UUID)) return "System UUID";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_BASEBOARD_PLATFORM_ID)) return "Baseboard Platform ID";
+	if (Lenovo::CompareEntryKeys(Key, &Lenovo::SMBIOS_ENTRY_KEY_OS_PRELOAD_SUFFIX)) return "OS Preload Suffix";
+	return "Unknown";
 }
 
 static auto DrawLdbgEntry(Lenovo::PLDBG_ENTRY Entry, uint32_t Index) -> Lenovo::PLDBG_ENTRY
 {
 	char NodeLabel[64] = { 0 };
-	sprintf_s(NodeLabel, sizeof(NodeLabel), "Entry[0x%08X]", Index);
+	sprintf_s(NodeLabel, sizeof(NodeLabel), "Entry[0x%08X] (%s)", Index, EntryKeyToString(&Entry->Key).c_str());
 
 	auto NextEntry = Entry + 1;
 
-	auto Color = LdbgOperationToColor(Entry->Operation);
-	ImGui::PushStyleColor(ImGuiCol_Text, Color);
-
-	auto Open = ImGui::TreeNode(NodeLabel);
-
+	ImU32 NamespaceColor = NamespaceIdColor(&Entry->Key.NamespaceId);
+	ImGui::PushStyleColor(ImGuiCol_Text, NamespaceColor);
+	auto Ok = ImGui::TreeNode(NodeLabel);
 	ImGui::PopStyleColor();
 
-	if (!Open)
+	if (!Ok)
 	{
 		return NextEntry;
 	}
@@ -1242,12 +1248,17 @@ static auto DrawLenvBlockHeader(Lenovo::PLENV_HEADER Header) -> void
 
 static auto DrawLenvBlockEntry(Lenovo::PLENV_ENTRY Entry, uint32_t Index) -> Lenovo::PLENV_ENTRY
 {
-	char NodeLable[64] = { 0 };
-	sprintf_s(NodeLable, sizeof(NodeLable), "Entry[0x%08X]", Index);
+	char NodeLabel[64] = { 0 };
+	sprintf_s(NodeLabel, sizeof(NodeLabel), "Entry[0x%08X] (%s)", Index, EntryKeyToString(&Entry->Key).c_str());
 
 	auto NextEntry = Cast::To<Lenovo::PLENV_ENTRY>(Cast::To<uint8_t*>(Entry) + offsetof(Lenovo::LENV_ENTRY, Data) + Entry->DataSize);
 
-	if (!ImGui::TreeNode(NodeLable))
+	ImU32 NamespaceColor = NamespaceIdColor(&Entry->Key.NamespaceId);
+	ImGui::PushStyleColor(ImGuiCol_Text, NamespaceColor);
+	auto Ok = ImGui::TreeNode(NodeLabel);
+	ImGui::PopStyleColor();
+
+	if (!Ok)
 	{
 		return NextEntry;
 	}
@@ -1457,7 +1468,7 @@ auto DrawStatePanelContent(HWND hWnd, APP_STATE& State) -> void
 
 	if (State.LenvBlock1Found && State.LenvBlock2Found && State.LenvBlock1 && State.LenvBlock2)
 	{
-		ImGui::TextUnformatted("Prioritized LENV block:");
+		ImGui::TextUnformatted("Prioritized LENV Block:");
 
 		auto PrioritizedBlock = (State.LenvBlock1->Header.Generation >= State.LenvBlock2->Header.Generation) ? 1 : 2;
 
@@ -1648,10 +1659,8 @@ auto UI::DrawMainWindow(HWND hWnd, APP_STATE& State) -> void
 		STRUCTURE_PANEL_HEADER_HOVER_COLOR,
 		STRUCTURE_PANEL_HEADER_ACTIVE_COLOR,
 		STRUCTURE_PANEL_TEXT_PRIORITY_COLOR,
-		STRUCTURE_PANEL_LDBG_OP_SET_DATA_COLOR,
-		STRUCTURE_PANEL_LDBG_OP_PROTECT_COLOR,
-		STRUCTURE_PANEL_LDBG_OP_UNPROTECT_COLOR,
-		STRUCTURE_PANEL_LDBG_OP_UNKNOWN_COLOR
+		STRUCTURE_PANEL_SMBIOS_NAMESPACE_COLOR,
+		STRUCTURE_PANEL_OTHER_NAMESPACE_COLOR
 	);
 
 	// Build the state panel layout.

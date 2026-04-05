@@ -110,11 +110,41 @@ namespace Lenovo
 	using CLDBG_ENTRY		= const LDBG_ENTRY;
 	using PCLDBG_ENTRY		= const LDBG_ENTRY*;
 
+	// "LENV" and "LDBG" signatures in little-endian format.
 	constexpr const uint32_t LENV_SIGNATURE = Signature32('L', 'E', 'N', 'V');
 	constexpr const uint32_t LDBG_SIGNATURE = Signature32('L', 'D', 'B', 'G');
 
-	constexpr const uint32_t DEFAULT_LENV_SIZE = 0x1000;
-	constexpr const uint32_t DEFAULT_LDBG_SIZE = 0x2000;
+	// Hard-coded sizes based on the reverse-engineered firmware.
+	constexpr const uint32_t DEFAULT_LENV_SIZE = 0x1000;	// 1 page
+	constexpr const uint32_t DEFAULT_LDBG_SIZE = 0x2000;	// 2 pages
 
+	// Easily adjustable if needed.
 	constexpr const char* LDBG_PATTERN = "4C 44 42 47 ? ? ? ? 00 00 00 00 00 00 00 00";
+
+	// The firmware appears to use the same namespace ID for all SMBIOS-related entries: "55 57 0E C2 69 11 56 4C A4 8A 98 24 AB 43".
+	constexpr const NAMESPACE_ID SMBIOS_NAMESPACE = { 0x55, 0x57, 0x0E, 0xC2, 0x69, 0x11, 0x56, 0x4C, 0xA4, 0x8A, 0x98, 0x24, 0xAB, 0x43 };
+
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_WINDOWS_KEY				= 0x0001;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_OA3_KEY_ID				= 0x000B;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_MOTHERBOARD_NAME		= 0x0100;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_MACHINE_TYPE_MODEL		= 0x0200;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_BASEBOARD_SERIAL_NUMBER	= 0x0400;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_SYSTEM_UUID				= 0x0500;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_BASEBOARD_PLATFORM_ID	= 0x0F00;
+	constexpr const ENTRY_TYPE SMBIOS_ENTRY_OS_PRELOAD_SUFFIX		= 0x1000;
+
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_WINDOWS_KEY				= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_WINDOWS_KEY };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_OA3_KEY_ID				= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_OA3_KEY_ID };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_MOTHERBOARD_NAME			= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_MOTHERBOARD_NAME };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_MACHINE_TYPE_MODEL		= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_MACHINE_TYPE_MODEL };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_BASEBOARD_SERIAL_NUMBER	= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_BASEBOARD_SERIAL_NUMBER };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_SYSTEM_UUID				= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_SYSTEM_UUID };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_BASEBOARD_PLATFORM_ID	= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_BASEBOARD_PLATFORM_ID };
+	constexpr const ENTRY_KEY SMBIOS_ENTRY_KEY_OS_PRELOAD_SUFFIX		= { SMBIOS_NAMESPACE, SMBIOS_ENTRY_OS_PRELOAD_SUFFIX };
+	
+
+	// Helper functions.
+	auto CompareNamespaceIds(PCNAMESPACE_ID Id1, PCNAMESPACE_ID Id2) -> bool;
+	auto IsSmbiosNamespace(PCNAMESPACE_ID Id) -> bool;
+	auto CompareEntryKeys(PCENTRY_KEY Key1, PCENTRY_KEY Key2) -> bool;
 }
